@@ -6,9 +6,9 @@ use web_sys::*;
 
 pub struct Color2DGradient {
     program: WebGlProgram,
+    color_buffer: WebGlBuffer,
     rect_vertices_buffer: WebGlBuffer,
     rect_vertices_indices_count: i32,
-    u_color: WebGlUniformLocation,
     u_opacity: WebGlUniformLocation,
     u_transform: WebGlUniformLocation,
 }
@@ -70,9 +70,12 @@ impl Color2DGradient {
         );
 
         Self {
+            color_buffer: gl
+                .create_buffer()
+                .ok_or("failed to create color buffer")
+                .unwrap(),
             rect_vertices_buffer: buffer_rect,
             rect_vertices_indices_count: indices_array.length() as i32,
-            u_color: gl.get_uniform_location(&program, "uColor").unwrap(),
             u_opacity: gl.get_uniform_location(&program, "uOpacity").unwrap(),
             u_transform: gl.get_uniform_location(&program, "uTransform").unwrap(),
             program, // must be last as it takes over ownership of program
@@ -92,7 +95,8 @@ impl Color2DGradient {
         gl.use_program(Some(&self.program));
         gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.rect_vertices_buffer));
         gl.vertex_attrib_pointer_with_i32(0, 2, GL::FLOAT, false, 0, 0);
-        // no attributes
+        // best to study the docs for a clearer picture (https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/vertexAttribPointer)
+        // targeted index the attribute is/will be sitting on
         // size. elements per vertex attribute. we are doing 2d, so we have x,y
         // the vertices will contain float. (our shaders use vec4, which will auto fill zeros where not provided)
         // normalized?
@@ -100,8 +104,29 @@ impl Color2DGradient {
         // offset
         gl.enable_vertex_attrib_array(0);
 
-        // color
-        gl.uniform4f(Some(&self.u_color), 0.5, 0., 0., 1.);
+        // color ( we are doing a gradient, so we can't use a uniform, which is
+        // constant per call to render)
+        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.color_buffer));
+        gl.vertex_attrib_pointer_with_i32(1, 4, GL::FLOAT, false, 0, 0);
+        gl.enable_vertex_attrib_array(1);
+
+        let colors: [f32; 16] = [
+            1., 0., 0., 1., 0., 1., 0., 1., 0., 0., 0., 1., 1., 1., 1., 1.,
+        ];
+        let colors_memory_buffer = wasm_bindgen::memory()
+            .dyn_into::<WebAssembly::Memory>()
+            .unwrap()
+            .buffer();
+        let color_vals_location = colors.as_ptr() as u32 / 4;
+        let color_vals_array = js_sys::Float32Array::new(&colors_memory_buffer).subarray(
+            color_vals_location,
+            color_vals_location + colors.len() as u32,
+        );
+        gl.buffer_data_with_array_buffer_view(
+            GL::ARRAY_BUFFER,
+            &color_vals_array,
+            GL::DYNAMIC_DRAW,
+        );
 
         // opacity
         gl.uniform1f(Some(&self.u_opacity), 1.);
