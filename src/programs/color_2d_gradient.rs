@@ -6,8 +6,8 @@ use web_sys::*;
 
 pub struct Color2DGradient {
     program: WebGlProgram,
-    rect_vertices_array_length: usize,
     rect_vertices_buffer: WebGlBuffer,
+    rect_vertices_indices_count: i32,
     u_color: WebGlUniformLocation,
     u_opacity: WebGlUniformLocation,
     u_transform: WebGlUniformLocation,
@@ -23,9 +23,15 @@ impl Color2DGradient {
         .unwrap();
 
         // as a test program showing a rectangle, we will define the coordinates of the
-        // two triangles forming the rectangle. the same points are defined twice
-        // deliberately at this time.
-        let vertices_rect: [f32; 12] = [0., 1., 0., 0., 1., 1., 1., 1., 0., 0., 1., 0.];
+        // two triangles forming the rectangle.
+        // unlike before where we specified overlapping points, we omit repeats
+        // instead, we alloc a new vec that informs the order
+        // while it seems inefficient for this few shapes and overlaps
+        // we are promised that when the graphics become complex in 3d, we
+        // get a return on investment
+        // nb: triangles are always specified ccw
+        let vertices_rect: [f32; 8] = [0., 1., 0., 0., 1., 1., 1., 0.];
+        let vertices_indices_rect: [u16; 6] = [0, 1, 2, 2, 1, 3];
 
         // we shall feed the vertices to the shader program. but how?
         // we have to allocate some memory and cast them...
@@ -38,13 +44,34 @@ impl Color2DGradient {
             vertices_location,
             vertices_location + vertices_rect.len() as u32,
         );
-        let buffer_rect = gl.create_buffer().ok_or("failed to create buffer").unwrap();
+        let buffer_rect = gl
+            .create_buffer()
+            .ok_or("failed to create buffer for vertices")
+            .unwrap();
         gl.bind_buffer(GL::ARRAY_BUFFER, Some(&buffer_rect));
         gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &vert_array, GL::STATIC_DRAW);
 
+        // ditto for the vertices indices. gotta expose'em to shaders
+        let vertices_indices_memory_buffer = wasm_bindgen::memory()
+            .dyn_into::<WebAssembly::Memory>()
+            .unwrap()
+            .buffer();
+        let vertices_indices_location = vertices_indices_rect.as_ptr() as u32 / 2;
+        let indices_array = js_sys::Uint16Array::new(&vertices_indices_memory_buffer).subarray(
+            vertices_indices_location,
+            vertices_indices_location + vertices_indices_rect.len() as u32,
+        );
+        let buffer_indices = gl.create_buffer().unwrap();
+        gl.bind_buffer(GL::ELEMENT_ARRAY_BUFFER, Some(&buffer_indices));
+        gl.buffer_data_with_array_buffer_view(
+            GL::ELEMENT_ARRAY_BUFFER,
+            &indices_array,
+            GL::STATIC_DRAW,
+        );
+
         Self {
-            rect_vertices_array_length: vertices_rect.len(),
             rect_vertices_buffer: buffer_rect,
+            rect_vertices_indices_count: indices_array.length() as i32,
             u_color: gl.get_uniform_location(&program, "uColor").unwrap(),
             u_opacity: gl.get_uniform_location(&program, "uOpacity").unwrap(),
             u_transform: gl.get_uniform_location(&program, "uTransform").unwrap(),
@@ -99,7 +126,12 @@ impl Color2DGradient {
 
         // draw, given all the settings loaded above
         let offset = 0;
-        let count = (self.rect_vertices_array_length / 2) as i32;
-        gl.draw_arrays(GL::TRIANGLES, offset, count);
+        // gl.draw_arrays(GL::TRIANGLES, offset, count); // can't use this with indices
+        gl.draw_elements_with_i32(
+            GL::TRIANGLES,
+            self.rect_vertices_indices_count,
+            GL::UNSIGNED_SHORT,
+            offset,
+        );
     }
 }
