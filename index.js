@@ -24,7 +24,7 @@ rust.then(m => {
         if (curTime >= lastDrawTime + FPS_THROTTLE) {
             lastDrawTime = curTime;
 
-            if (window.innerHeight != canvas.height || window.innerWidth != canvas.width) {
+            if (window.innerHeight !== canvas.height || window.innerWidth !== canvas.width) {
                 canvas.height = window.innerHeight;
                 canvas.clientHeight = window.innerHeight;
                 canvas.style.height = window.innerHeight;
