@@ -75,7 +75,7 @@ impl Color2D {
         gl.enable_vertex_attrib_array(0);
 
         // color
-        gl.uniform4f(Some(&self.u_color), 0., 0.5, 0.5, 1.);
+        gl.uniform4f(Some(&self.u_color), 0., 0.5, 0.5, 0.2);
 
         // opacity
         gl.uniform1f(Some(&self.u_opacity), 1.);

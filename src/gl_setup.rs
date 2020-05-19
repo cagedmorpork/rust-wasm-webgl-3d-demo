@@ -14,7 +14,7 @@ pub fn initialize_webgl_context() -> Result<WebGlRenderingContext, JsValue> {
 
     gl.enable(GL::BLEND);
     gl.blend_func(GL::SRC_ALPHA, GL::ONE_MINUS_SRC_ALPHA);
-    gl.clear_color(0.0, 0.5, 0.0, 1.0); // RGBA
+    gl.clear_color(0.0, 0.0, 0.0, 1.0); // RGBA
     gl.clear_depth(1.);
 
     Ok(gl)

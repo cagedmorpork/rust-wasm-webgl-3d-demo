@@ -22,7 +22,8 @@ extern "C" {
 pub struct Client {
     gl: WebGlRenderingContext,
     program_color_2d: programs::Color2D,
-    program_color_2d_gradient: programs::Color2DGradient,
+    _program_color_2d_gradient: programs::Color2DGradient,
+    program_graph_3d: programs::Graph3d,
 }
 
 #[wasm_bindgen]
@@ -33,7 +34,8 @@ impl Client {
         let gl = gl_setup::initialize_webgl_context().unwrap();
         Self {
             program_color_2d: programs::Color2D::new(&gl),
-            program_color_2d_gradient: programs::Color2DGradient::new(&gl),
+            _program_color_2d_gradient: programs::Color2DGradient::new(&gl),
+            program_graph_3d: programs::Graph3d::new(&gl),
             gl: gl,
         }
     }
@@ -57,14 +59,25 @@ impl Client {
             cur_app_state.canvas_height,
             cur_app_state.canvas_width,
         );
-        self.program_color_2d_gradient.render(
+        // self.program_color_2d_gradient.render(
+        //     &self.gl,
+        //     cur_app_state.control_bottom + 30.,
+        //     cur_app_state.control_top - 30.,
+        //     cur_app_state.control_left + 30.,
+        //     cur_app_state.control_right - 30.,
+        //     cur_app_state.canvas_height,
+        //     cur_app_state.canvas_width,
+        // );
+        self.program_graph_3d.render(
             &self.gl,
-            cur_app_state.control_bottom + 30.,
-            cur_app_state.control_top - 30.,
-            cur_app_state.control_left + 30.,
-            cur_app_state.control_right - 30.,
+            cur_app_state.control_bottom,
+            cur_app_state.control_top,
+            cur_app_state.control_left,
+            cur_app_state.control_right,
             cur_app_state.canvas_height,
             cur_app_state.canvas_width,
+            0.5,
+            0.5,
         );
     }
 }
