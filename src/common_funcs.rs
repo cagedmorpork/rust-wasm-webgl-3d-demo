@@ -1,3 +1,4 @@
+use super::constants::*;
 use nalgebra::Perspective3;
 use web_sys::WebGlRenderingContext as GL;
 use web_sys::*;
@@ -171,11 +172,6 @@ pub fn get_3d_projection_matrix(
     rotation_angle_x_axis: f32,
     rotation_angle_y_axis: f32,
 ) -> [f32; 16] {
-    const FIELD_OF_VIEW: f32 = 45. * std::f32::consts::PI / 180.;
-    const Z_FAR: f32 = 100.; // how far you can see before things are clipped
-    const Z_NEAR: f32 = 0.1; // clip things nearer than this to the camera
-    const Z_PLANE: f32 = -2.414213; // related to our 45 deg FOV. -1/tan(pi/8)
-
     // ---- rotation matrix ---- //
     #[rustfmt::skip]
     let rotate_x_axis: [f32;16] = [
@@ -215,4 +211,14 @@ pub fn get_3d_projection_matrix(
     perspective.copy_from_slice(perspective_matrix_tmp.as_matrix().as_slice());
 
     cross_multiply_matrix(&combined_transform, &perspective)
+}
+
+// ==== y values! ==== //
+pub fn get_updated_3d_y_values(cur_time: f32) -> Vec<f32> {
+    let point_count_per_row = GRID_SIZE + 1;
+    let mut y_vals: Vec<f32> = vec![0.; point_count_per_row * point_count_per_row];
+
+    y_vals[25] = 1.;
+    y_vals[30] = -1.;
+    y_vals
 }

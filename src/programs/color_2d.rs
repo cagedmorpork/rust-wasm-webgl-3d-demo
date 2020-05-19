@@ -25,8 +25,8 @@ impl Color2D {
         // as a test program showing a rectangle, we will define the coordinates of the
         // two triangles forming the rectangle. the same points are defined twice
         // deliberately at this time.
-        // let vertices_rect: [f32; 12] = [0., 1., 0., 0., 1., 1., 1., 1., 0., 0., 1., 0.];
-        let vertices_rect: [f32; 6] = [0., 1., 0., 0., 1., 1.];
+        let vertices_rect: [f32; 12] = [0., 1., 0., 0., 1., 1., 1., 1., 0., 0., 1., 0.];
+        // let vertices_rect: [f32; 6] = [0., 1., 0., 0., 1., 1.];
 
         // we shall feed the vertices to the shader program. but how?
         // we have to allocate some memory and cast them...
