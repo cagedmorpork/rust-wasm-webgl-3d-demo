@@ -76,8 +76,8 @@ impl Client {
             cur_app_state.control_right,
             cur_app_state.canvas_height,
             cur_app_state.canvas_width,
-            0.5,
-            0.5,
+            cur_app_state.rotation_x_axis,
+            cur_app_state.rotation_y_axis,
         );
     }
 }
