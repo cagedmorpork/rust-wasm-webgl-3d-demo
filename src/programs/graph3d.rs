@@ -15,6 +15,8 @@ pub struct Graph3d {
     pub indices_buffer: WebGlBuffer,
     pub index_count: i32,
     pub y_buffer: WebGlBuffer,
+    pub normals_buffer: WebGlBuffer,
+    pub u_normals_rotation: WebGlUniformLocation,
     pub u_opacity: WebGlUniformLocation,
     pub u_projection: WebGlUniformLocation,
 }
@@ -77,6 +79,9 @@ impl Graph3d {
             // rect_vertices_indices_count: indices_array.length() as i32,
             u_opacity: gl.get_uniform_location(&program, "uOpacity").unwrap(),
             u_projection: gl.get_uniform_location(&program, "uProjection").unwrap(),
+            u_normals_rotation: gl
+                .get_uniform_location(&program, "uNormalsRotation")
+                .unwrap(),
             program, // must be last as it takes over ownership of program
 
             position_buffer: buffer_position,
@@ -85,6 +90,11 @@ impl Graph3d {
             y_buffer: gl
                 .create_buffer()
                 .ok_or("failed to create y buffer")
+                .unwrap(),
+
+            normals_buffer: gl
+                .create_buffer()
+                .ok_or("failed to create normals buffer")
                 .unwrap(),
         }
     }
@@ -104,7 +114,7 @@ impl Graph3d {
     ) {
         gl.use_program(Some(&self.program));
 
-        let projection_matrix = cf::get_3d_projection_matrix(
+        let projection_and_rotation_matrices = cf::get_3d_projection_matrix_and_rotation(
             bottom,
             top,
             left,
@@ -115,7 +125,18 @@ impl Graph3d {
             rotation_angle_y_axis,
         );
 
-        gl.uniform_matrix4fv_with_f32_array(Some(&self.u_projection), false, &projection_matrix);
+        gl.uniform_matrix4fv_with_f32_array(
+            Some(&self.u_projection),
+            false,
+            &projection_and_rotation_matrices.projection,
+        );
+
+        // normals
+        gl.uniform_matrix4fv_with_f32_array(
+            Some(&self.u_normals_rotation),
+            false,
+            &projection_and_rotation_matrices.normals_rotation,
+        );
 
         // opacity
         gl.uniform1f(Some(&self.u_opacity), 1.);
@@ -139,6 +160,25 @@ impl Graph3d {
         let y_array = js_sys::Float32Array::new(&y_memory_buffer)
             .subarray(y_location, y_location + y_vals.len() as u32);
         gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &y_array, GL::DYNAMIC_DRAW);
+
+        // normals
+        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.normals_buffer));
+        gl.vertex_attrib_pointer_with_i32(2, 3, GL::FLOAT, false, 0, 0);
+        gl.enable_vertex_attrib_array(2);
+
+        // normals dynamic draw
+        let normals_vals = cf::get_grid_normals(super::super::constants::GRID_SIZE, &y_vals);
+        let normals_memory_buffer = wasm_bindgen::memory()
+            .dyn_into::<WebAssembly::Memory>()
+            .unwrap()
+            .buffer();
+
+        let normals_location = normals_vals.as_ptr() as u32 / 4;
+        let normals_array = js_sys::Float32Array::new(&normals_memory_buffer).subarray(
+            normals_location,
+            normals_location + normals_vals.len() as u32,
+        );
+        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &normals_array, GL::DYNAMIC_DRAW);
 
         gl.draw_elements_with_i32(GL::TRIANGLES, self.index_count, GL::UNSIGNED_SHORT, 0);
     }

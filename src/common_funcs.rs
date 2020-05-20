@@ -1,5 +1,5 @@
 use super::constants::*;
-use nalgebra::Perspective3;
+use nalgebra::{Matrix4, Perspective3};
 use web_sys::WebGlRenderingContext as GL;
 use web_sys::*;
 
@@ -162,7 +162,12 @@ pub fn get_position_grid_n_by_n(n: usize) -> (Vec<f32>, Vec<u16>) {
 }
 
 // ==== function to get 3D perspective projection matrix ==== //
-pub fn get_3d_projection_matrix(
+pub struct Matrices3D {
+    pub projection: [f32; 16],
+    pub normals_rotation: [f32; 16],
+}
+
+pub fn get_3d_projection_matrix_and_rotation(
     bottom: f32,
     top: f32,
     left: f32,
@@ -171,7 +176,12 @@ pub fn get_3d_projection_matrix(
     canvas_width: f32,
     rotation_angle_x_axis: f32,
     rotation_angle_y_axis: f32,
-) -> [f32; 16] {
+) -> Matrices3D {
+    let mut protag = Matrices3D {
+        projection: [0.; 16],
+        normals_rotation: [0.; 16],
+    };
+
     // ---- rotation matrix ---- //
     #[rustfmt::skip]
     let rotate_x_axis: [f32;16] = [
@@ -210,7 +220,115 @@ pub fn get_3d_projection_matrix(
     let mut perspective: [f32; 16] = [0.; 16];
     perspective.copy_from_slice(perspective_matrix_tmp.as_matrix().as_slice());
 
-    cross_multiply_matrix(&combined_transform, &perspective)
+    protag.projection = cross_multiply_matrix(&combined_transform, &perspective);
+    // ---- normal matrix for protag ---- //
+    let normal_matrix = Matrix4::new(
+        rotation_matrix[0],
+        rotation_matrix[1],
+        rotation_matrix[2],
+        rotation_matrix[3],
+        rotation_matrix[4],
+        rotation_matrix[5],
+        rotation_matrix[6],
+        rotation_matrix[7],
+        rotation_matrix[8],
+        rotation_matrix[9],
+        rotation_matrix[10],
+        rotation_matrix[11],
+        rotation_matrix[12],
+        rotation_matrix[13],
+        rotation_matrix[14],
+        rotation_matrix[15],
+    );
+
+    match normal_matrix.try_inverse() {
+        Some(inv) => {
+            protag.normals_rotation.copy_from_slice(inv.as_slice());
+        }
+        None => {
+            panic!("failed to get normal matrix' inverse!");
+        }
+    }
+
+    protag
+}
+
+// ---- function to get normals to a triangle ---- //
+pub fn get_normal_vec(
+    point_a_x: f32,
+    point_a_y: f32,
+    point_a_z: f32,
+    point_b_x: f32,
+    point_b_y: f32,
+    point_b_z: f32,
+    point_c_x: f32,
+    point_c_y: f32,
+    point_c_z: f32,
+) -> (f32, f32, f32) {
+    let u_x = point_b_x - point_a_x;
+    let u_y = point_b_y - point_a_y;
+    let u_z = point_b_z - point_a_z;
+    let v_x = point_c_x - point_a_x;
+    let v_y = point_c_y - point_a_y;
+    let v_z = point_c_z - point_a_z;
+
+    let normal_x = u_y * v_z - v_y * u_z;
+    let normal_y = -1. * (u_x * v_z - v_x * u_z);
+    let normal_z = u_x * v_y - v_x * u_y;
+
+    let normal_size = (normal_x * normal_x + normal_y * normal_y + normal_z * normal_z).sqrt();
+
+    (
+        normal_x / normal_size,
+        normal_y / normal_size,
+        normal_z / normal_size,
+    )
+}
+
+// ---- function to calculate the normals of every vertex on a grid ---- //
+pub fn get_grid_normals(n: usize, y_vals: &Vec<f32>) -> Vec<f32> {
+    let points_per_row = n + 1;
+    let graph_layout_width: f32 = 2.;
+    let square_size: f32 = graph_layout_width / n as f32;
+    let mut protag: Vec<f32> = vec![0.; 3 * points_per_row * points_per_row];
+
+    for z in 0..points_per_row {
+        for x in 0..points_per_row {
+            let y_val_index_a = z * points_per_row + x;
+            let return_var_start_index = 3 * y_val_index_a;
+
+            if z == n || x == n {
+                protag[return_var_start_index + 1] = 1.;
+            } else {
+                let y_val_index_b = y_val_index_a + points_per_row;
+                let y_val_index_c = y_val_index_a + 1;
+
+                let x_val_1 = square_size * x as f32;
+                let x_val_2 = x_val_1 + square_size;
+
+                let z_val_1 = square_size * z as f32;
+                let z_val_2 = z_val_1 + square_size;
+
+                let normals = get_normal_vec(
+                    x_val_1,
+                    y_vals[y_val_index_a],
+                    z_val_1,
+                    x_val_1,
+                    y_vals[y_val_index_b],
+                    z_val_2,
+                    x_val_2,
+                    y_vals[y_val_index_c],
+                    z_val_2,
+                );
+
+                protag[return_var_start_index + 0] = normals.0;
+                protag[return_var_start_index + 1] = normals.1;
+                protag[return_var_start_index + 2] = normals.2;
+            }
+        }
+    }
+
+    protag
 }
 
 // ==== y values! ==== //
@@ -220,7 +338,7 @@ pub fn get_updated_3d_y_values(cur_time: f32) -> Vec<f32> {
 
     // to draw a sine wave
     let half_grid: f32 = point_count_per_row as f32 / 2.;
-    let frequency_scale: f32 = 10. * std::f32::consts::PI;
+    let frequency_scale: f32 = 4. * std::f32::consts::PI;
     let y_scale = 0.15;
 
     for z in 0..point_count_per_row {
