@@ -61,8 +61,8 @@ impl AppState {
             mouse_down: false,
             mouse_x: -1.,
             mouse_y: -1.,
-            rotation_x_axis: 0.5,
-            rotation_y_axis: 0.5,
+            rotation_x_axis: -0.5,
+            rotation_y_axis: -0.5,
             time: 0.,
         }
     }
