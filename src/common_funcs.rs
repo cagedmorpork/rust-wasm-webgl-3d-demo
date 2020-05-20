@@ -340,6 +340,7 @@ pub fn get_updated_3d_y_values(cur_time: f32) -> Vec<f32> {
     let half_grid: f32 = point_count_per_row as f32 / 2.;
     let frequency_scale: f32 = 4. * std::f32::consts::PI;
     let y_scale = 0.15;
+    let sin_offset = cur_time / 1000.; // time will now affect generated y val
 
     for z in 0..point_count_per_row {
         for x in 0..point_count_per_row {
@@ -347,7 +348,7 @@ pub fn get_updated_3d_y_values(cur_time: f32) -> Vec<f32> {
             let scaled_x = frequency_scale * (x as f32 - half_grid) / half_grid;
             let scaled_z = frequency_scale * (z as f32 - half_grid) / half_grid;
             y_vals[use_y_index] =
-                y_scale * ((scaled_x * scaled_x + scaled_z * scaled_z).sqrt()).sin();
+                y_scale * ((scaled_x * scaled_x + scaled_z * scaled_z).sqrt() + sin_offset).sin();
             // pythagorean
         }
     }

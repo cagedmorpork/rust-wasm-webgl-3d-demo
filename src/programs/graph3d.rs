@@ -139,7 +139,7 @@ impl Graph3d {
         );
 
         // opacity
-        gl.uniform1f(Some(&self.u_opacity), 1.);
+        gl.uniform1f(Some(&self.u_opacity), 0.5);
         // position
         gl.bind_buffer(GL::ARRAY_BUFFER, Some(&self.position_buffer));
         gl.vertex_attrib_pointer_with_i32(0, 3, GL::FLOAT, false, 0, 0);
